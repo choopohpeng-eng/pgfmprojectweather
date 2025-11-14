@@ -1,68 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Singapore 2-hr Nowcast Weather Information</title>
-    
-    <!-- CSS Link -->
-    <!--<link rel="stylesheet" href="style.css"> -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Singapore 2-hr Nowcast Weather Information</title>
 
-    <!-- Optional: Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <!-- CSS Link -->
+  <!--<link rel="stylesheet" href="style.css"> -->
+
+  <!-- Optional: Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+     * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* prevent whole page scroll */
+    }
+
+    header {
+      background: #0078d7;
+      color: white;        
+      padding: 15px 0;
+      font-size: 1.8em;
+      text-align: center;
+      font-weight: bold;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    .weather-display {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin: 0 auto;
+      max-width: 600px;
+      text-align: center;
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      z-index: 999;
+    }
+
+    .weather-icon {
+      font-size: 3em;
+      margin: 10px 0;
+    }
+
+    /* Scrollable region grid area */
+    .region-container {
+      position: absolute;
+      top: 300px; /* Below header + weather box */
+      bottom: 0;
+      width: 100%;
+      overflow-y: auto;
+      padding: 20px 10px;
+    }
+
+    /* Flexbox grid */
+    .region-table {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .small-flexbox {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(20% - 15px); /* 5 columns */
+      min-width: 150px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 10px 5px;
+      width: 100%;
+      min-height: 4cqb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+      background: #e8f4ff;
+    }
+
+    .region-name {
+      font-size: 1em;
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* Highlight selected region */
+    .selected {
+      background: #0078d7 !important;
+      color: white !important;
+      box-shadow: 0 0 10px rgba(0,120,215,0.5);
+    }
+
+    @media (max-width: 768px) {
+      .small-flexbox {
+        width: calc(33.33% - 15px);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .small-flexbox {
+        width: calc(50% - 15px);
+      }
+    }
+  </style>
+
 </head>
 
 <body>
-    <header>
-        <h1>Singapore 2-hr Nowcast Weather Information</h1>
-    </header>
-   
-    <div class="weather-display">
-        <h2 id="region-name">Select a region for the weather infomation</h2>
-        <div id="weather-icon" class="weather-icon">🌈</div>
-        <div id="weather-info">The weather information for the selected region will appear here</div>
-        <div id="time-info"></div>
-    </div>
 
+  <header>Singapore 2-Hour Weather Forecast</header>
+
+  <div class="weather-display">
+    <h2 id="region-name">Select a region for the weather information</h2>
+    <div id="weather-icon" class="weather-icon">🌈</div>
+    <div id="weather-info">The weather information for the selected region will appear here</div>
+    <div id="time-info"></div>
+  </div>
+
+  <div class="region-container">
     <div id="region-table" class="region-table"></div>
+  </div>
 
-    <footer>
-        <!-- Footer content like copyright, contact info, etc. -->
-        <p>&copy; 2025 PP Choo. All rights reserved.
-            Data from <a href="https://data.gov.sg/dataset/nea-2-hour-weather-forecast" target="_blank">NEA API</a><br>
-            Click a region above to see the weather information0.
-        </p>
-    </footer>
-
-    <script>
+  <script>
     const regionName = document.getElementById("region-name");
     const weatherIcon = document.getElementById("weather-icon");
     const weatherInfo = document.getElementById("weather-info");
     const timeInfo = document.getElementById("time-info");
     
     const regionTable = document.getElementById("region-table");
-    
+
     const weatherEmojis = {
-      "Fair": "☀️",
-      "Fair (Day)": "🌤️",
+      "Fair": "☀️", 
+      "Fair (Day)": "🌤️", 
       "Fair (Night)": "🌙",
-      "Fair and Warm": "☀️",
+      "Fair and Warm": "☀️", 
       "Partly Cloudy": "⛅",
-      "Partly Cloudy (Day)": "🌤️",
+      "Partly Cloudy (Day)": "🌤️", 
       "Partly Cloudy (Night)": "🌙☁️",
-      "Cloudy": "☁️",
-      "Hazy": "🌫️",
-      "Slighty Hazy": "🌫️",
-      "Windy": "🌬️",
-      "Mist": "🌫️",
+      "Cloudy": "☁️", 
+      "Hazy": "🌫️", 
+      "Slightly Hazy": "🌫️",
+      "Windy": "🌬️", 
+      "Mist": "🌫️", 
       "Fog": "🌫️",
-      "Light Rain": "🌦️",
-      "Moderate Rain": "🌧️",
+      "Light Rain": "🌦️", 
+      "Moderate Rain": "🌧️", 
       "Heavy Rain": "🌧️🌧️",
-      "Passing Showers": "🌦️",
-      "Light Showers": "🌦️",
+      "Passing Showers": "🌦️", 
+      "Light Showers": "🌦️", 
       "Showers": "🌦️",
-      "Heavy Showers": "🌦️",
+      "Heavy Showers": "🌧️", 
       "Thundery Showers": "⛈️",
       "Heavy Thundery Showers": "🌩️",
       "Heavy Thundery Showers with Gusty Winds": "🌪️"
@@ -77,18 +193,40 @@
       "Tuas", "Western Islands", "Western Water Catchment", "Woodlands", "Yishun"
     ];
 
-    regions.forEach(region => {
-      const button = document.createElement("button");
-      button.textContent = region;
+    const totalCells = 47; // 47 region
+    let selectedCard = null;
 
-      button.onclick = function() {
-        document.querySelectorAll(".region-table button").forEach(btn => btn.classList.remove("active"));
-        button.classList.add("active");
-        fetchWeather(region);
-      };
+    for (let i = 0; i < totalCells; i++) {
+      const smallFlexbox = document.createElement('div');
+      smallFlexbox.className = 'small-flexbox';
 
-      regionTable.appendChild(button);
-    });
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      if (regions[i]) {
+        card.innerHTML = `<div class="region-name">${regions[i]}</div>`;
+        card.addEventListener('click', () => {
+          if (selectedCard) selectedCard.classList.remove('selected');
+          card.classList.add('selected');
+          selectedCard = card;
+          fetchWeather(regions[i]);
+        });
+      } else {
+        card.innerHTML = `<div class="region-name">—</div>`;
+        card.addEventListener('click', () => {
+          if (selectedCard) selectedCard.classList.remove('selected');
+          card.classList.add('selected');
+          selectedCard = card;
+          regionName.textContent = "No Region Selected";
+          weatherInfo.textContent = "No data available";
+          weatherIcon.textContent = "❌";
+          timeInfo.textContent = "";
+        });
+      }
+
+      smallFlexbox.appendChild(card);
+      regionTable.appendChild(smallFlexbox);
+    }
 
     function fetchWeather(region) {
       fetch("https://api.data.gov.sg/v1/environment/2-hour-weather-forecast")
@@ -122,7 +260,5 @@
     }
   </script>
 
-    <!-- JavaScript Link (defer to improve performance) -->
-    <!-- <script src="script.js"></script> -->
 </body>
 </html>
