@@ -1,264 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Singapore 2-hr Nowcast Weather Information</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>2-Hour Nowcast</title>
 
-  <!-- CSS Link -->
-  <!--<link rel="stylesheet" href="style.css"> -->
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-  <!-- Optional: Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --header-h: 72px;
+    --weather-h: 170px;
+    --gap: 16px;
+    --accent: #0078d7;
+    --card-radius: 12px;
+  }
 
-    <style>
-     * {
-      box-sizing: border-box;
-    }
+  html,body{height:100%; margin:0; font-family: "Roboto", Arial, sans-serif; background:#f3f6f9;}
 
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      margin: 0;
-      padding: 0;
-      overflow: hidden; /* prevent whole page scroll */
-    }
+  /* ---------- Header ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0;
+    height:var(--header-h);
+    background:var(--accent);
+    color:white;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,0.15);
+    z-index:1200;
+  }
+  header h1{ margin:0; font-size:28px; font-weight:800; letter-spacing:0.5px;}
+  /* toggle in header (right) */
+  .header-actions{ position:absolute; right:18px; top:calc(var(--header-h)/2 - 18px); }
 
-    header {
-      background: #0078d7;
-      color: white;        
-      padding: 15px 0;
-      font-size: 1.8em;
-      text-align: center;
-      font-weight: bold;
-      position: fixed;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-    }
+  .toggle-btn{
+    background:transparent; border:2px solid rgba(255,255,255,0.9);
+    color:white; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700;
+  }
+  .toggle-btn.inactive{ background:rgba(255,255,255,0.15); }
 
-    .weather-display {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 15px;
-      margin: 0 auto;
-      max-width: 600px;
-      text-align: center;
-      position: fixed;
-      top: 70px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90%;
-      z-index: 999;
-    }
+  /* ---------- Weather display (fixed under header) ---------- */
+  .weather-display{
+    position:fixed;
+    top:var(--header-h);
+    left:50%;
+    transform:translateX(-50%);
+    width: min(980px, calc(100% - 48px));
+    height: var(--weather-h);
+    background:white;
+    border-radius: var(--card-radius);
+    box-shadow:0 10px 24px rgba(20,30,60,0.08);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px 28px;
+    text-align:center;
+    z-index:1100;
+  }
+  .weather-display h2{ margin:0 0 8px 0; font-size:26px; color:#111; }
+  .weather-display .icon{ font-size:56px; margin:6px 0; }
+  .weather-display .info{ color:#333; margin-top:6px; font-size:20px; }
 
-    .weather-icon {
-      font-size: 3em;
-      margin: 10px 0;
-    }
+  /* ---------- Main content area below weather display ---------- */
+  .content-area{
+    position: absolute;
+    top: calc(var(--header-h) + var(--weather-h) + var(--gap) + 50px);
+    left: 0; right: 0; bottom: 0;
+    padding: 0 28px 28px;
+    overflow: hidden;
+  }
 
-    /* Scrollable region grid area */
-    .region-container {
-      position: absolute;
-      top: 300px; /* Below header + weather box */
-      bottom: 0;
-      width: 100%;
-      overflow-y: auto;
-      padding: 20px 10px;
-    }
+  /* region container scrolls independently */
+  .region-container{
+    height: 100%;
+    overflow-y: auto;
+    padding-top: 8px;
+  }
 
-    /* Flexbox grid */
-    .region-table {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 15px;
-      max-width: 1200px;
-      margin: auto;
-    }
+  /* ---------- Flexbox grid of region buttons ---------- */
+  .region-table{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    justify-content:center;
+    align-items:flex-start;
+    padding-bottom: 48px;
+  }
 
-    .small-flexbox {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: calc(20% - 15px); /* 5 columns */
-      min-width: 150px;
-    }
+  .small-flexbox{
+    width: calc(33.333% - 16px);
+    min-width: 180px;
+    display:flex;
+    justify-content:center;
+  }
 
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 10px 5px;
-      width: 100%;
-      min-height: 4cqb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
-      cursor: pointer;
-    }
+  .card{
+    width:100%;
+    background:white;
+    border-radius: 14px;
+    padding: 14px 12px;
+    box-shadow: 0 6px 16px rgba(20,30,60,0.06);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    cursor:pointer;
+    transition: transform .14s ease, box-shadow .14s ease, background-color .14s ease;
+    user-select:none;
+  }
+  .card:hover{ transform: translateY(-6px); box-shadow:0 14px 32px rgba(20,30,60,0.08); background:#f6fbff; }
+  .card.selected{ background: var(--accent); color: white; box-shadow: 0 14px 32px rgba(0,120,215,0.18); }
+  .region-name{ font-size:18px; font-weight:500; color:#222; text-align:center; }
 
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-      background: #e8f4ff;
-    }
+  /* ---------- Map container ---------- */
+  #map {
+    width:100%;
+    height:100%;
+    display:none; /* table default; shown by toggle */
+    border-radius: 10px;
+    overflow:hidden;
+  }
 
-    .region-name {
-      font-size: 1em;
-      color: #333;
-      font-weight: 500;
-    }
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px){
+    .small-flexbox{ width: calc(50% - 16px); min-width: 140px; }
+    .weather-display{ width: calc(100% - 36px); height:150px; padding:16px; }
+  }
+  @media (max-width: 520px){
+    header h1{ font-size:20px; }
+    .small-flexbox{ width: calc(100% - 16px); }
+    .weather-display{ height:150px; padding:12px; }
+    .weather-display h2{ font-size:18px; }
+  }
 
-    /* Highlight selected region */
-    .selected {
-      background: #0078d7 !important;
-      color: white !important;
-      box-shadow: 0 0 10px rgba(0,120,215,0.5);
-    }
+  /* small utility to show active button */
+  .toggle-btn.active {
+    background: rgba(255,255,255,0.15);
+  }
 
-    @media (max-width: 768px) {
-      .small-flexbox {
-        width: calc(33.33% - 15px);
-      }
-    }
-
-    @media (max-width: 480px) {
-      .small-flexbox {
-        width: calc(50% - 15px);
-      }
-    }
-  </style>
-
+  /* style for leaflet popup to match */
+  .leaflet-popup-content-wrapper { border-radius: 10px; }
+  .leaflet-popup-tip { background: white; }
+</style>
 </head>
-
 <body>
 
-  <header>Singapore 2-Hour Weather Forecast</header>
+<header>
+  <h1>2-Hour Nowcast</h1>
+  <div class="header-actions">
+    <button id="btnTable" class="toggle-btn inactive">Table</button>
+    <button id="btnMap" class="toggle-btn">Map</button>
+  </div>
+</header>
 
-  <div class="weather-display">
-    <h2 id="region-name">Select a region for the weather information</h2>
-    <div id="weather-icon" class="weather-icon">🌈</div>
-    <div id="weather-info">The weather information for the selected region will appear here</div>
-    <div id="time-info"></div>
+<!-- Weather display always visible in both modes -->
+<div class="weather-display" id="weatherBox">
+  <h2 id="weatherTitle">Select a region for the weather information</h2>
+  <div id="weatherIcon" class="icon">🌈</div>
+  <div id="weatherText" class="info">The weather information for the selected region will appear here</div>
+  <div id="timeInfo" style="font-size:12px; color:#666; margin-top:8px;"></div>
   </div>
 
-  <div class="region-container">
-    <div id="region-table" class="region-table"></div>
+<!-- main area (map or table) below weather-display -->
+<div class="content-area">
+  <div class="region-container" id="regionContainer">
+    <div class="region-table" id="region-table"></div>
   </div>
 
-  <script>
-    const regionName = document.getElementById("region-name");
-    const weatherIcon = document.getElementById("weather-icon");
-    const weatherInfo = document.getElementById("weather-info");
-    const timeInfo = document.getElementById("time-info");
-    
-    const regionTable = document.getElementById("region-table");
+  <!-- map sits in the same content area. hidden by default -->
+  <div id="map" style="position:absolute; left:28px; right:28px; bottom:28px; top:0;"></div>
+</div>
 
-    const weatherEmojis = {
-      "Fair": "☀️", 
-      "Fair (Day)": "🌤️", 
-      "Fair (Night)": "🌙",
-      "Fair and Warm": "☀️", 
-      "Partly Cloudy": "⛅",
-      "Partly Cloudy (Day)": "🌤️", 
-      "Partly Cloudy (Night)": "🌙☁️",
-      "Cloudy": "☁️", 
-      "Hazy": "🌫️", 
-      "Slightly Hazy": "🌫️",
-      "Windy": "🌬️", 
-      "Mist": "🌫️", 
-      "Fog": "🌫️",
-      "Light Rain": "🌦️", 
-      "Moderate Rain": "🌧️", 
-      "Heavy Rain": "🌧️🌧️",
-      "Passing Showers": "🌦️", 
-      "Light Showers": "🌦️", 
-      "Showers": "🌦️",
-      "Heavy Showers": "🌧️", 
-      "Thundery Showers": "⛈️",
-      "Heavy Thundery Showers": "🌩️",
-      "Heavy Thundery Showers with Gusty Winds": "🌪️"
-    };
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    const regions = [
-      "Ang Mo Kio", "Bedok", "Bishan", "Boon Lay", "Bukit Batok", "Bukit Merah", "Bukit Panjang", "Bukit Timah",
-      "Central Water Catchment", "Changi", "Choa Chu Kang", "Clementi", "City", "Geylang", "Hougang", "Jalan Bahar",
-      "Jurong East", "Jurong Island", "Jurong West", "Kallang", "Lim Chu Kang", "Mandai", "Marine Parade", "Novena",
-      "Pasir Ris", "Paya Lebar", "Pioneer", "Pulau Tekong", "Pulau Ubin", "Punggol", "Queenstown", "Seletar", "Sembawang",
-      "Sengkang", "Sentosa", "Serangoon", "Southern Islands", "Sungei Kadut", "Tampines", "Tanglin", "Tengah", "Toa Payoh",
-      "Tuas", "Western Islands", "Western Water Catchment", "Woodlands", "Yishun"
-    ];
+<script>
+/* ------------------ Configuration ------------------ */
+const API = "https://api.data.gov.sg/v1/environment/2-hour-weather-forecast";
 
-    const totalCells = 47; // 47 region
-    let selectedCard = null;
+/* Regions fallback (if needed) -- but we'll primarily use area_metadata from API */
+const fallbackRegions = [
+  "Ang Mo Kio","Bedok","Bishan","Boon Lay","Bukit Batok","Bukit Merah","Bukit Panjang","Bukit Timah",
+  "Central Water Catchment","Changi","Choa Chu Kang","Clementi","City","Geylang","Hougang","Jalan Bahar",
+  "Jurong East","Jurong Island","Jurong West","Kallang","Lim Chu Kang","Mandai","Marine Parade","Novena",
+  "Pasir Ris","Paya Lebar","Pioneer","Pulau Tekong","Pulau Ubin","Punggol","Queenstown","Seletar","Sembawang",
+  "Sengkang","Sentosa","Serangoon","Southern Islands","Sungei Kadut","Tampines","Tanglin","Tengah","Toa Payoh",
+  "Tuas","Western Islands","Western Water Catchment","Woodlands","Yishun"
+];
 
-    for (let i = 0; i < totalCells; i++) {
-      const smallFlexbox = document.createElement('div');
-      smallFlexbox.className = 'small-flexbox';
+/* ------------------ DOM refs ------------------ */
+const regionTable = document.getElementById('region-table');
+const weatherTitle = document.getElementById('weatherTitle');
+const weatherIcon = document.getElementById('weatherIcon');
+const weatherText = document.getElementById('weatherText');
+const timeInfo = document.getElementById('timeInfo');
 
-      const card = document.createElement('div');
-      card.className = 'card';
+const btnTable = document.getElementById('btnTable');
+const btnMap = document.getElementById('btnMap');
+const regionContainer = document.getElementById('regionContainer');
+const mapDiv = document.getElementById('map');
 
-      if (regions[i]) {
-        card.innerHTML = `<div class="region-name">${regions[i]}</div>`;
-        card.addEventListener('click', () => {
-          if (selectedCard) selectedCard.classList.remove('selected');
-          card.classList.add('selected');
-          selectedCard = card;
-          fetchWeather(regions[i]);
-        });
-      } else {
-        card.innerHTML = `<div class="region-name">—</div>`;
-        card.addEventListener('click', () => {
-          if (selectedCard) selectedCard.classList.remove('selected');
-          card.classList.add('selected');
-          selectedCard = card;
-          regionName.textContent = "No Region Selected";
-          weatherInfo.textContent = "No data available";
-          weatherIcon.textContent = "❌";
-          timeInfo.textContent = "";
-        });
+let AREA_DATA = [];
+let FORECASTS = [];
+let markers = {};         // keyed by cleaned region name
+let selectedCard = null;
+
+/* ------------------ Emoji mapper ------------------ */
+function emojiFor(forecast){
+  if(!forecast) return "🌈";
+  const f = forecast.toLowerCase();
+  if(f.includes("thunder")) return "⛈️";
+  if(f.includes("heavy thundery") || f.includes("heavy thundery")) return "🌩️";
+  if(f.includes("heavy")) return "🌧️";
+  if(f.includes("rain")) return "🌧️";
+  if(f.includes("shower")) return "🌦️";
+  if(f.includes("cloud")) return "☁️";
+  if(f.includes("fair") && f.includes("night")) return "🌙";
+  if(f.includes("fair")) return "🌤️";
+  if(f.includes("hazy")) return "🌫️";
+  return "🌈";
+}
+
+/* ------------------ Map init (bounded with ~20% padding) ------------------ */
+const singaporeBounds = L.latLngBounds(
+  L.latLng(1.15 - 0.07, 103.55 - 0.10),
+  L.latLng(1.50 + 0.07, 104.10 + 0.10)
+);
+
+const map = L.map('map', {
+  maxBounds: singaporeBounds,
+  maxBoundsViscosity: 1.0,
+  minZoom: 10,
+  maxZoom: 18,
+  zoomControl: true
+}).setView([1.3521,103.8198], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+/* ------------------ Fetch data once ------------------ */
+fetch(API)
+  .then(r=>r.json())
+  .then(data => {
+    // area_metadata contains coordinates; forecasts contains area forecasts
+    AREA_DATA = data.area_metadata || [];
+    FORECASTS = (data.items && data.items[0] && data.items[0].forecasts) || [];
+
+    // show valid period
+    if(data.items && data.items[0] && data.items[0].valid_period){
+      const s = new Date(data.items[0].valid_period.start);
+      const e = new Date(data.items[0].valid_period.end);
+      timeInfo.textContent = `From ${s.toLocaleTimeString()} to ${e.toLocaleTimeString()}`;
+    }
+
+    buildRegionGrid();
+    buildMapMarkers();
+  })
+  .catch(err=>{
+    console.error("API error:", err);
+    // fallback: build grid from fallback list
+    AREA_DATA = fallbackRegions.map(r => ({name:r, label_location:{latitude:1.3521, longitude:103.8198}}));
+    FORECASTS = [];
+    buildRegionGrid();
+  });
+
+/* ------------------ Build region grid (flexbox) ------------------ */
+function buildRegionGrid(){
+  regionTable.innerHTML = ''; // clear
+
+  // use AREA_DATA order when available, else fallback list
+  const regions = AREA_DATA.length ? AREA_DATA.map(a => a.name) : fallbackRegions;
+
+  regions.forEach(name=>{
+    const box = document.createElement('div');
+    box.className = 'small-flexbox';
+
+    const card = document.createElement('button');
+    card.className = 'card';
+    card.type = 'button';
+    card.innerHTML = `<div class="region-name">${name}</div>`;
+
+    card.addEventListener('click', ()=>{
+      // select state
+      if(selectedCard) selectedCard.classList.remove('selected');
+      card.classList.add('selected'); selectedCard = card;
+
+      // update top weather box
+      showRegionForecast(name);
+
+      // try to open marker popup on map if exists
+      const key = name.toLowerCase().replace(/[^a-z]/g,'');
+      if(markers[key]){
+        // Open popup (works even if map hidden)
+        markers[key].openPopup();
+
+        // If map is visible, pan/zoom to marker so popup is obvious
+        if(mapDiv.style.display !== 'none'){
+          map.setView(markers[key].getLatLng(), 13, {animate:true});
+        } else {
+          // still open popup in background; when user toggles to map it will be visible
+        }
       }
+    });
 
-      smallFlexbox.appendChild(card);
-      regionTable.appendChild(smallFlexbox);
-    }
+    box.appendChild(card);
+    regionTable.appendChild(box);
+  });
+}
 
-    function fetchWeather(region) {
-      fetch("https://api.data.gov.sg/v1/environment/2-hour-weather-forecast")
-        .then(response => response.json())
-        .then(data => {
-          const forecast = data.items[0].forecasts.find(f => f.area === region);
-          const start = data.items[0].valid_period.start;
-          const end = data.items[0].valid_period.end;
+/* ------------------ Show forecast in weather box ------------------ */
+function showRegionForecast(name){
+  weatherTitle.textContent = name;
 
-          regionName.textContent = region;
+  // match forecast entry ignoring spacing and case
+  const cleaned = name.toLowerCase().replace(/[^a-z]/g,'');
+  const match = FORECASTS.find(f => f.area && f.area.toLowerCase().replace(/[^a-z]/g,'') === cleaned);
 
-          if (forecast) {
-            const forecastText = forecast.forecast;
-            weatherInfo.textContent = forecastText;
-            weatherIcon.textContent = weatherEmojis[forecastText] || "🌈";
-            timeInfo.textContent =
-              "From: " + new Date(start).toLocaleTimeString() +
-              " To: " + new Date(end).toLocaleTimeString();
-          } else {
-            weatherInfo.textContent = "No data available";
-            weatherIcon.textContent = "❓";
-            timeInfo.textContent = "";
-          }
-        })
-        .catch(error => {
-          weatherInfo.textContent = "Error fetching data";
-          weatherIcon.textContent = "⚠️";
-          timeInfo.textContent = "";
-          console.error(error);
-        });
-    }
-  </script>
+  if(match){
+    weatherText.textContent = match.forecast;
+    weatherIcon.textContent = emojiFor(match.forecast);
+  } else {
+    weatherText.textContent = "No data available";
+    weatherIcon.textContent = "❓";
+  }
+}
 
+/* ------------------ Highlight selected card helper ------------------ */
+function highlightRegionCard(name){
+  // Remove previous selection
+  const cards = document.querySelectorAll(".card");
+  cards.forEach(c => c.classList.remove('selected'));
+
+  const cleaned = name.toLowerCase().replace(/[^a-z]/g,'');
+  const target = Array.from(cards).find(c => c.textContent.trim().toLowerCase().replace(/[^a-z]/g,'') === cleaned);
+
+  if(target){
+    target.classList.add('selected');
+    selectedCard = target;
+    // ensure the card is visible in the scroll container
+    try {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch(e){}
+  }
+}
+
+/* ------------------ Build map markers (with full sync) ------------------ */
+function buildMapMarkers() {
+  AREA_DATA.forEach(area => {
+    const name = area.name;
+    const lat = area.label_location.latitude;
+    const lon = area.label_location.longitude;
+
+    // match forecast
+    const cleaned = name.toLowerCase().replace(/[^a-z]/g, '');
+    const match = FORECASTS.find(f => f.area && f.area.toLowerCase().replace(/[^a-z]/g, '') === cleaned);
+    const forecast = match ? match.forecast : "Unknown";
+    const icon = emojiFor(forecast);
+
+    const popupHTML = `
+      <div style="min-width:200px;">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="font-size:28px;">${icon}</div>
+          <div>
+            <div style="font-weight:700">${name}</div>
+            <div style="color:#444;">${forecast}</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;color:#666;font-size:13px;">
+          Lat: ${lat.toFixed(4)} &nbsp; Lon: ${lon.toFixed(4)}
+        </div>
+      </div>
+    `;
+
+    const marker = L.marker([lat, lon]).addTo(map).bindPopup(popupHTML, { autoPan: true });
+    markers[cleaned] = marker;
+
+    /* ---------------------------------------------------------
+       FULL SYNC EVENTS:
+       - Marker click updates table + weather display
+       - Popup opening updates weather display
+       - Popup click also updates weather display
+    --------------------------------------------------------- */
+
+    // 1) When marker is clicked
+    marker.on("click", () => {
+      showRegionForecast(name);
+      highlightRegionCard(name);
+    });
+
+    // 2) When popup is opened (on mobile, popup opens without clicking marker)
+    marker.on("popupopen", () => {
+      showRegionForecast(name);
+      highlightRegionCard(name);
+
+      // Also add click listener to popup content to ensure clicks inside popup sync
+      const popupNode = marker.getPopup().getElement();
+      if (popupNode) {
+        // Remove prior to avoid duplicates
+        popupNode.removeEventListener("__sync_click", popupNode.__sync_click_handler);
+        // Create a handler reference so it can be removed next time
+        const handler = () => {
+          showRegionForecast(name);
+          highlightRegionCard(name);
+        };
+        popupNode.__sync_click_handler = handler;
+        // Use a named property to avoid conflicts; attach real listener
+        popupNode.addEventListener("click", handler);
+        // tag it so we can detect later if needed
+        popupNode.__sync_attached = true;
+      }
+    });
+
+    // 3) When popup closes we can optionally remove click handler to avoid leaks
+    marker.on("popupclose", () => {
+      const popupNode = marker.getPopup().getElement();
+      if (popupNode && popupNode.__sync_click_handler) {
+        try {
+          popupNode.removeEventListener("click", popupNode.__sync_click_handler);
+        } catch (e){}
+        popupNode.__sync_click_handler = null;
+      }
+    });
+
+  });
+}
+
+/* ------------------ Toggle Map / Table ------------------ */
+function setMode(mode){ // 'table' or 'map'
+  if(mode === 'map'){
+    // show map, hide region grid (but keep weather display visible)
+    mapDiv.style.display = 'block';
+    regionContainer.style.display = 'none';
+    btnMap.classList.add('active'); btnTable.classList.remove('active');
+    // ensure map resizes to container size
+    setTimeout(()=>{ map.invalidateSize(); }, 250);
+  } else {
+    mapDiv.style.display = 'none';
+    regionContainer.style.display = 'block';
+    btnTable.classList.add('active'); btnMap.classList.remove('active');
+  }
+}
+
+// initial default = table
+setMode('table');
+
+// hook buttons
+btnMap.addEventListener('click', ()=> setMode('map'));
+btnTable.addEventListener('click', ()=> setMode('table'));
+</script>
 </body>
 </html>
